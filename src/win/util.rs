@@ -1,6 +1,6 @@
 use windows::Win32::System::RemoteDesktop::{WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW, WTSEnumerateProcessesW};
 
-pub fn get_processes() -> Vec<String> {
+pub fn get_running_processes() -> Vec<String> {
     let mut processes: Vec<String> = Vec::new();
     let mut wts_pi: *mut WTS_PROCESS_INFOW= std::ptr::null_mut();
     let mut p_count: u32 = 0;
