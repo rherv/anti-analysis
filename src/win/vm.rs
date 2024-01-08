@@ -1,7 +1,15 @@
+use lazy_static::lazy_static;
+use crate::win::util::fs::get_windows_directory;
 use crate::win::util::proc::{get_running_processes, proc_contains};
 
+lazy_static! {
+    static ref WINDOWS_DIRECTORY: String = {
+        get_windows_directory()
+    };
+}
+
 pub fn check_all() -> bool {
-    check_all_processes() || check_all_reg_keys()
+    check_all_processes() || check_all_reg_keys() || check_all_files()
 }
 
 pub fn check_all_processes() -> bool {
@@ -15,26 +23,18 @@ pub fn check_all_processes() -> bool {
 }
 
 pub fn check_all_reg_keys() -> bool {
-    vbox::check_registry()
+    vbox::check_registry() || vmware::check_registry() || vpc::check_registry()
+}
+
+pub fn check_all_files() -> bool {
+    vbox::check_files()
 }
 
 pub mod vbox {
+    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
     use crate::win::util::reg::keys_exist;
-
-    pub fn get_reg_keys() -> Vec<&'static str> {
-        vec![
-            "HARDWARE\\ACPI\\DSDT\\VBOX__",
-            "HARDWARE\\ACPI\\FADT\\VBOX__",
-            "HARDWARE\\ACPI\\RSDT\\VBOX__",
-            "SOFTWARE\\Oracle\\VirtualBox Guest Additions",
-            "SYSTEM\\ControlSet001\\Services\\VBoxGuest",
-            "SYSTEM\\ControlSet001\\Services\\VBoxMouse",
-            "SYSTEM\\ControlSet001\\Services\\VBoxService",
-            "SYSTEM\\ControlSet001\\Services\\VBoxSF",
-            "SYSTEM\\ControlSet001\\Services\\VBoxVideo",
-        ]
-    }
+    use crate::win::vm::WINDOWS_DIRECTORY;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -48,19 +48,45 @@ pub mod vbox {
     }
 
     pub fn check_registry() -> bool {
-        println!("check_registry called");
-        keys_exist(&get_reg_keys())
+        keys_exist(&vec![
+            "HARDWARE\\ACPI\\DSDT\\VBOX__",
+            "HARDWARE\\ACPI\\FADT\\VBOX__",
+            "HARDWARE\\ACPI\\RSDT\\VBOX__",
+            "SOFTWARE\\Oracle\\VirtualBox Guest Additions",
+            "SYSTEM\\ControlSet001\\Services\\VBoxGuest",
+            "SYSTEM\\ControlSet001\\Services\\VBoxMouse",
+            "SYSTEM\\ControlSet001\\Services\\VBoxService",
+            "SYSTEM\\ControlSet001\\Services\\VBoxSF",
+            "SYSTEM\\ControlSet001\\Services\\VBoxVideo",
+        ])
+    }
+
+    pub fn check_files() -> bool {
+        vec![
+            "System32\\drivers\\VBoxMouse.sys",
+            "System32\\drivers\\VBoxGuest.sys",
+            "System32\\drivers\\VBoxSF.sys",
+            "System32\\drivers\\VBoxVideo.sys",
+            "System32\\vboxdisp.dll",
+            "System32\\vboxhook.dll",
+            "System32\\vboxmrxnp.dll",
+            "System32\\vboxogl.dll",
+            "System32\\vboxoglarrayspu.dll",
+            "System32\\vboxoglcrutil.dll",
+            "System32\\vboxoglerrorspu.dll",
+            "System32\\vboxoglfeedbackspu.dll",
+            "System32\\vboxoglpackspu.dll",
+            "System32\\vboxoglpassthroughspu.dll",
+            "System32\\vboxservice.exe",
+            "System32\\vboxtray.exe",
+            "System32\\VBoxControl.exe",
+        ].iter().any(|path_name| Path::new(&format!("{}\\{}", WINDOWS_DIRECTORY, path_name)).exists())
     }
 }
 
 pub mod vmware {
     use crate::win::util::proc::{get_running_processes, proc_contains};
-
-    pub fn get_reg_keys() -> Vec<&'static str> {
-        vec![
-            "SOFTWARE\\VMware, Inc.\\VMware Tools"
-        ]
-    }
+    use crate::win::util::reg::keys_exist;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -74,6 +100,12 @@ pub mod vmware {
 
     pub fn check_processes() -> bool {
         proc_contains(&get_running_processes(), &get_processes())
+    }
+
+    pub fn check_registry() -> bool {
+        keys_exist(&vec![
+            "SOFTWARE\\VMware, Inc.\\VMware Tools"
+        ])
     }
 }
 
@@ -95,12 +127,7 @@ pub mod qemu {
 
 pub mod vpc {
     use crate::win::util::proc::{get_running_processes, proc_contains};
-
-    pub fn get_reg_keys() -> Vec<&'static str> {
-        vec![
-            "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters"
-        ]
-    }
+    use crate::win::util::reg::keys_exist;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -111,6 +138,12 @@ pub mod vpc {
 
     pub fn check_processes() -> bool {
         proc_contains(&get_running_processes(), &crate::win::vm::vmware::get_processes())
+    }
+
+    pub fn check_registry() -> bool {
+        keys_exist(&vec![
+            "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters"
+        ])
     }
 }
 

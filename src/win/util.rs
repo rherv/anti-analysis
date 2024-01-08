@@ -66,6 +66,27 @@ pub mod reg {
     }
 }
 
+pub mod fs {
+    use windows::Win32::System::SystemInformation::GetWindowsDirectoryW;
+
+    pub fn get_windows_directory() -> String {
+        let mut output_size: u32 = 0;
+        let mut windows_directory: Vec<u16> = std::iter::repeat('\0' as u16)
+            .take(1024)
+            .collect();
+
+        unsafe {
+            output_size = GetWindowsDirectoryW(
+                Some(windows_directory.as_mut_slice())
+            );
+        }
+
+        windows_directory.truncate(output_size as usize);
+
+        String::from_utf16_lossy(&*windows_directory)
+    }
+}
+
 
 fn encode_wide(s: &str) -> Vec<u16> {
     std::ffi::OsString::from(s)
