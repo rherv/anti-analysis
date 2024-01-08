@@ -33,7 +33,6 @@ pub mod vbox {
             "SYSTEM\\ControlSet001\\Services\\VBoxService",
             "SYSTEM\\ControlSet001\\Services\\VBoxSF",
             "SYSTEM\\ControlSet001\\Services\\VBoxVideo",
-            //"SOFTWARE\\Microsoft\\Windows\\CurrentVersion"
         ]
     }
 
@@ -56,6 +55,12 @@ pub mod vbox {
 
 pub mod vmware {
     use crate::win::util::proc::{get_running_processes, proc_contains};
+
+    pub fn get_reg_keys() -> Vec<&'static str> {
+        vec![
+            "SOFTWARE\\VMware, Inc.\\VMware Tools"
+        ]
+    }
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -90,6 +95,12 @@ pub mod qemu {
 
 pub mod vpc {
     use crate::win::util::proc::{get_running_processes, proc_contains};
+
+    pub fn get_reg_keys() -> Vec<&'static str> {
+        vec![
+            "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters"
+        ]
+    }
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
