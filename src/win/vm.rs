@@ -1,10 +1,14 @@
 use lazy_static::lazy_static;
-use crate::win::util::fs::get_windows_directory;
+use crate::win::util::fs::{get_program_files_directory, get_windows_directory};
 use crate::win::util::proc::{get_running_processes, proc_contains};
 
 lazy_static! {
     static ref WINDOWS_DIRECTORY: String = {
         get_windows_directory()
+    };
+
+    static ref PROGRAM_FILES_DIRECTORY: String = {
+        get_program_files_directory()
     };
 }
 
@@ -27,7 +31,7 @@ pub fn check_all_reg_keys() -> bool {
 }
 
 pub fn check_all_files() -> bool {
-    vbox::check_files()
+    vbox::check_files() || vmware::check_files() || qemu::check_files()
 }
 
 pub mod vbox {
@@ -80,13 +84,15 @@ pub mod vbox {
             "System32\\vboxservice.exe",
             "System32\\vboxtray.exe",
             "System32\\VBoxControl.exe",
-        ].iter().any(|path_name| Path::new(&format!("{}\\{}", WINDOWS_DIRECTORY, path_name)).exists())
+        ].iter().any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
     }
 }
 
 pub mod vmware {
+    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
     use crate::win::util::reg::keys_exist;
+    use crate::win::vm::WINDOWS_DIRECTORY;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -107,10 +113,32 @@ pub mod vmware {
             "SOFTWARE\\VMware, Inc.\\VMware Tools"
         ])
     }
+
+    pub fn check_files() -> bool {
+        vec![
+            "System32\\drivers\\vmnet.sys",
+            "System32\\drivers\\vmmouse.sys",
+            "System32\\drivers\\vmusb.sys",
+            "System32\\drivers\\vm3dmp.sys",
+            "System32\\drivers\\vmci.sys",
+            "System32\\drivers\\vmhgfs.sys",
+            "System32\\drivers\\vmmemctl.sys",
+            "System32\\drivers\\vmx86.sys",
+            "System32\\drivers\\vmrawdsk.sys",
+            "System32\\drivers\\vmusbmouse.sys",
+            "System32\\drivers\\vmkdb.sys",
+            "System32\\drivers\\vmnetuserif.sys",
+            "System32\\drivers\\vmnetadapter.sys",
+        ].iter().any(|path_name| {
+            Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists()
+        })
+    }
 }
 
 pub mod qemu {
+    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
+    use crate::win::vm::PROGRAM_FILES_DIRECTORY;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -122,6 +150,13 @@ pub mod qemu {
 
     pub fn check_processes() -> bool {
         proc_contains(&get_running_processes(), &crate::win::vm::vmware::get_processes())
+    }
+
+    pub fn check_files() -> bool {
+        vec![
+            "qemu-ga",
+            "SPICE Guest Tools",
+        ].iter().any(|path_name| Path::new(&format!("{}\\{}", *PROGRAM_FILES_DIRECTORY, path_name)).exists())
     }
 }
 

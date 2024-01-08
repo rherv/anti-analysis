@@ -33,7 +33,6 @@ pub mod proc {
 }
 
 pub mod reg {
-    use std::os::windows::ffi::OsStrExt;
     use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RegOpenKeyW};
     use windows::core::*;
     use windows::Win32::Foundation::ERROR_SUCCESS;
@@ -67,10 +66,13 @@ pub mod reg {
 }
 
 pub mod fs {
+    use std::ffi::OsString;
+    use std::os::windows::ffi::OsStringExt;
     use windows::Win32::System::SystemInformation::GetWindowsDirectoryW;
+    use windows::Win32::UI::Shell::CSIDL_PROGRAM_FILES;
 
     pub fn get_windows_directory() -> String {
-        let mut output_size: u32 = 0;
+        let output_size: u32;
         let mut windows_directory: Vec<u16> = std::iter::repeat('\0' as u16)
             .take(1024)
             .collect();
@@ -84,6 +86,27 @@ pub mod fs {
         windows_directory.truncate(output_size as usize);
 
         String::from_utf16_lossy(&*windows_directory)
+    }
+
+    pub fn get_program_files_directory() -> String {
+        use windows::Win32::UI::Shell::SHGetFolderPathW;
+        let mut path: [u16; 260] = [0; 260];
+
+        unsafe {
+            let _ = SHGetFolderPathW(
+                None,
+                CSIDL_PROGRAM_FILES as i32,
+                None,
+                0,
+                &mut path,
+            );
+        }
+
+        OsString::from_wide(&path)
+            .to_string_lossy()
+            .as_ref()
+            .trim_end_matches('\0')
+            .to_string()
     }
 }
 
