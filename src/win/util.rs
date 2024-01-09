@@ -1,11 +1,13 @@
 use std::os::windows::ffi::OsStrExt;
 
 pub mod proc {
-    use windows::Win32::System::RemoteDesktop::{WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW, WTSEnumerateProcessesW};
+    use windows::Win32::System::RemoteDesktop::{
+        WTSEnumerateProcessesW, WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW,
+    };
 
     pub fn get_running_processes() -> Vec<String> {
         let mut processes: Vec<String> = Vec::new();
-        let mut wts_pi: *mut WTS_PROCESS_INFOW= std::ptr::null_mut();
+        let mut wts_pi: *mut WTS_PROCESS_INFOW = std::ptr::null_mut();
         let mut p_count: u32 = 0;
 
         unsafe {
@@ -14,8 +16,9 @@ pub mod proc {
                 0,
                 1,
                 &mut wts_pi,
-                &mut p_count as *mut u32
-            ).expect("TODO: panic message");
+                &mut p_count as *mut u32,
+            )
+            .expect("TODO: panic message");
 
             (0..p_count).for_each(|i| {
                 let process_info = &*wts_pi.offset(i as isize);
@@ -33,10 +36,10 @@ pub mod proc {
 }
 
 pub mod reg {
-    use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RegOpenKeyW};
+    use crate::win::util::encode_wide;
     use windows::core::*;
     use windows::Win32::Foundation::ERROR_SUCCESS;
-    use crate::win::util::encode_wide;
+    use windows::Win32::System::Registry::{RegOpenKeyW, HKEY_LOCAL_MACHINE};
 
     pub fn keys_exist(keys: &Vec<&str>) -> bool {
         keys.iter().any(|key| key_exists(key))
@@ -45,16 +48,16 @@ pub mod reg {
     fn key_exists(key: &str) -> bool {
         let mut hkey = unsafe { std::mem::zeroed() };
 
-        let err = unsafe { RegOpenKeyW(
-            HKEY_LOCAL_MACHINE,
-            PCWSTR(encode_wide(key).as_ptr()),
-            &mut hkey,
-        )};
+        let err = unsafe {
+            RegOpenKeyW(
+                HKEY_LOCAL_MACHINE,
+                PCWSTR(encode_wide(key).as_ptr()),
+                &mut hkey,
+            )
+        };
 
         match err {
-            Ok(_) => {
-                true
-            }
+            Ok(_) => true,
             Err(err) => {
                 if err == Error::from(ERROR_SUCCESS) {
                     return true;
@@ -73,14 +76,10 @@ pub mod fs {
 
     pub fn get_windows_directory() -> String {
         let output_size: u32;
-        let mut windows_directory: Vec<u16> = std::iter::repeat('\0' as u16)
-            .take(1024)
-            .collect();
+        let mut windows_directory: Vec<u16> = std::iter::repeat('\0' as u16).take(1024).collect();
 
         unsafe {
-            output_size = GetWindowsDirectoryW(
-                Some(windows_directory.as_mut_slice())
-            );
+            output_size = GetWindowsDirectoryW(Some(windows_directory.as_mut_slice()));
         }
 
         windows_directory.truncate(output_size as usize);
@@ -93,13 +92,7 @@ pub mod fs {
         let mut path: [u16; 260] = [0; 260];
 
         unsafe {
-            let _ = SHGetFolderPathW(
-                None,
-                CSIDL_PROGRAM_FILES as i32,
-                None,
-                0,
-                &mut path,
-            );
+            let _ = SHGetFolderPathW(None, CSIDL_PROGRAM_FILES as i32, None, 0, &mut path);
         }
 
         OsString::from_wide(&path)
@@ -109,7 +102,6 @@ pub mod fs {
             .to_string()
     }
 }
-
 
 fn encode_wide(s: &str) -> Vec<u16> {
     std::ffi::OsString::from(s)

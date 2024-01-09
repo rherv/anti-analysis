@@ -17,5 +17,6 @@ mod win_test {
     fn test_misc_check() {
         println!("Windows Sandbox Detection");
         println!("cpu\t: {}", if check_cpu_with_threshold(2) { "detected" } else { "none" });
+        println!("ram\t: {}", if check_ram_with_threshold(4) { "detected" } else { "none" });
     }
 }

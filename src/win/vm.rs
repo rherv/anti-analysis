@@ -1,15 +1,10 @@
-use lazy_static::lazy_static;
 use crate::win::util::fs::{get_program_files_directory, get_windows_directory};
 use crate::win::util::proc::{get_running_processes, proc_contains};
+use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref WINDOWS_DIRECTORY: String = {
-        get_windows_directory()
-    };
-
-    static ref PROGRAM_FILES_DIRECTORY: String = {
-        get_program_files_directory()
-    };
+    static ref WINDOWS_DIRECTORY: String = get_windows_directory();
+    static ref PROGRAM_FILES_DIRECTORY: String = get_program_files_directory();
 }
 
 pub fn check_all() -> bool {
@@ -35,16 +30,13 @@ pub fn check_all_files() -> bool {
 }
 
 pub mod vbox {
-    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
     use crate::win::util::reg::keys_exist;
     use crate::win::vm::WINDOWS_DIRECTORY;
+    use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
-        vec![
-            "vboxservice.exe",
-            "vboxtray.exe"
-        ]
+        vec!["vboxservice.exe", "vboxtray.exe"]
     }
 
     pub fn check_processes() -> bool {
@@ -84,15 +76,17 @@ pub mod vbox {
             "System32\\vboxservice.exe",
             "System32\\vboxtray.exe",
             "System32\\VBoxControl.exe",
-        ].iter().any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
+        ]
+        .iter()
+        .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
     }
 }
 
 pub mod vmware {
-    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
     use crate::win::util::reg::keys_exist;
     use crate::win::vm::WINDOWS_DIRECTORY;
+    use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec![
@@ -109,9 +103,7 @@ pub mod vmware {
     }
 
     pub fn check_registry() -> bool {
-        keys_exist(&vec![
-            "SOFTWARE\\VMware, Inc.\\VMware Tools"
-        ])
+        keys_exist(&vec!["SOFTWARE\\VMware, Inc.\\VMware Tools"])
     }
 
     pub fn check_files() -> bool {
@@ -129,34 +121,34 @@ pub mod vmware {
             "System32\\drivers\\vmkdb.sys",
             "System32\\drivers\\vmnetuserif.sys",
             "System32\\drivers\\vmnetadapter.sys",
-        ].iter().any(|path_name| {
-            Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists()
-        })
+        ]
+        .iter()
+        .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
     }
 }
 
 pub mod qemu {
-    use std::path::Path;
     use crate::win::util::proc::{get_running_processes, proc_contains};
     use crate::win::vm::PROGRAM_FILES_DIRECTORY;
+    use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
-        vec![
-            "qemu-ga.exe",
-            "vdagent.exe",
-            "vdservice.exe"
-        ]
+        vec!["qemu-ga.exe", "vdagent.exe", "vdservice.exe"]
     }
 
     pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &crate::win::vm::vmware::get_processes())
+        proc_contains(
+            &get_running_processes(),
+            &crate::win::vm::vmware::get_processes(),
+        )
     }
 
     pub fn check_files() -> bool {
-        vec![
-            "qemu-ga",
-            "SPICE Guest Tools",
-        ].iter().any(|path_name| Path::new(&format!("{}\\{}", *PROGRAM_FILES_DIRECTORY, path_name)).exists())
+        vec!["qemu-ga", "SPICE Guest Tools"]
+            .iter()
+            .any(|path_name| {
+                Path::new(&format!("{}\\{}", *PROGRAM_FILES_DIRECTORY, path_name)).exists()
+            })
     }
 }
 
@@ -165,20 +157,19 @@ pub mod vpc {
     use crate::win::util::reg::keys_exist;
 
     pub fn get_processes() -> Vec<&'static str> {
-        vec![
-            "VMUSrvc.exe",
-            "VMSrvc.exe"
-        ]
+        vec!["VMUSrvc.exe", "VMSrvc.exe"]
     }
 
     pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &crate::win::vm::vmware::get_processes())
+        proc_contains(
+            &get_running_processes(),
+            &crate::win::vm::vmware::get_processes(),
+        )
     }
 
     pub fn check_registry() -> bool {
         keys_exist(&vec![
-            "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters"
+            "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters",
         ])
     }
 }
-
