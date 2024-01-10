@@ -176,18 +176,25 @@ fn get_running_processes() -> Vec<String> {
     let mut p_count: u32 = 0;
 
     unsafe {
-        WTSEnumerateProcessesW(
+        match WTSEnumerateProcessesW(
             WTS_CURRENT_SERVER_HANDLE,
             0,
             1,
             &mut wts_pi,
             &mut p_count as *mut u32,
-        )
-        .expect("TODO: panic message");
+        ) {
+            Ok(_) => {}
+            Err(_) => {
+                return Vec::new();
+            }
+        }
 
         (0..p_count).for_each(|i| {
             let process_info = &*wts_pi.offset(i as isize);
-            let process_name = process_info.pProcessName.to_string().unwrap();
+            let process_name = OsString::from_wide(process_info.pProcessName.as_wide())
+                .to_string_lossy()
+                .as_ref()
+                .to_string();
             processes.push(process_name);
         });
     };

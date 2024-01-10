@@ -29,7 +29,7 @@ pub fn check_ram_with_threshold(gigabyte: u32) -> bool {
     return memory_status.ullTotalPhys < min;
 }
 
-pub fn check_recent_files(count: u32) -> bool {
+pub fn check_recent_files_with_threshold(count: u32) -> bool {
     let mut file_count: u32 = 0;
 
     let mut recent_files: Vec<u16>;
