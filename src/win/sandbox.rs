@@ -2,7 +2,7 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Storage::FileSystem::{FindFirstFileW, FindNextFileW, WIN32_FIND_DATAW};
 use windows::Win32::System::SystemInformation::{
-    GetSystemInfo, GlobalMemoryStatusEx, MEMORYSTATUSEX, SYSTEM_INFO,
+    GetSystemInfo, GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX, SYSTEM_INFO,
 };
 use windows::Win32::UI::Shell::{FOLDERID_Recent, SHGetKnownFolderPath, KNOWN_FOLDER_FLAG};
 
@@ -61,5 +61,11 @@ pub fn check_recent_files_with_threshold(count: u32) -> bool {
         }
     }
 
-    return file_count < count;
+    file_count < count
+}
+
+pub fn check_uptime_with_threshold(minutes: u64) -> bool {
+    let uptime = unsafe { GetTickCount64() } / 1000;
+
+    (minutes * 60) > uptime
 }

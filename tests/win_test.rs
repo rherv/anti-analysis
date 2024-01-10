@@ -7,59 +7,26 @@ mod win_test {
 
     #[test]
     fn test_vm_check_all() {
-        println!("Windows Virtual Machine Check");
-        println!(
-            "files\t: {}",
-            if check_all_files() {
-                "detected"
-            } else {
-                "none"
-            }
-        );
-        println!(
-            "procs\t: {}",
-            if check_all_processes() {
-                "detected"
-            } else {
-                "none"
-            }
-        );
-        println!(
-            "regkeys\t: {}",
-            if check_all_reg_keys() {
-                "detected"
-            } else {
-                "none"
-            }
-        );
+        println!("Windows Virtual Machine Detection");
+        println!("{:<13}{}", "File:", get_message(check_all_files()));
+        println!("{:<13}{}", "Process:", get_message(check_all_processes()));
+        println!("{:<13}{}", "RegKey:", get_message(check_all_reg_keys()));
     }
 
     #[test]
     fn test_sandbox_check() {
         println!("Windows Sandbox Detection");
-        println!(
-            "cpu\t\t: {}",
-            if check_cpu_with_threshold(2) {
-                "detected"
-            } else {
-                "none"
-            }
-        );
-        println!(
-            "ram\t\t: {}",
-            if check_ram_with_threshold(4) {
-                "detected"
-            } else {
-                "none"
-            }
-        );
-        println!(
-            "recent\t: {}",
-            if check_recent_files(5) {
-                "detected"
-            } else {
-                "none"
-            }
-        );
+        println!("{:<13}{}", "CPU:", get_message(check_cpu_with_threshold(2)));
+        println!("{:<13}{}", "RAM:", get_message(check_ram_with_threshold(4)));
+        println!("{:<13}{}", "Recent File:", get_message(check_recent_files_with_threshold(5)));
+        println!("{:<13}{}", "Uptime:", get_message(check_uptime_with_threshold(5)));
+    }
+
+    fn get_message(val: bool) -> &'static str {
+        if val {
+            "Detected"
+        } else {
+            "Not Detected"
+        }
     }
 }
