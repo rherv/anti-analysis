@@ -1,6 +1,14 @@
-use crate::win::util::fs::{get_program_files_directory, get_windows_directory};
-use crate::win::util::proc::{get_running_processes, proc_contains};
 use lazy_static::lazy_static;
+use std::ffi::OsString;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use windows::core::{Error, PCWSTR};
+use windows::Win32::Foundation::ERROR_SUCCESS;
+use windows::Win32::System::Registry::{RegOpenKeyW, HKEY_LOCAL_MACHINE};
+use windows::Win32::System::RemoteDesktop::{
+    WTSEnumerateProcessesW, WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW,
+};
+use windows::Win32::System::SystemInformation::GetWindowsDirectoryW;
+use windows::Win32::UI::Shell::CSIDL_PROGRAM_FILES;
 
 lazy_static! {
     static ref WINDOWS_DIRECTORY: String = get_windows_directory();
@@ -30,9 +38,7 @@ pub fn check_all_files() -> bool {
 }
 
 pub mod vbox {
-    use crate::win::util::proc::{get_running_processes, proc_contains};
-    use crate::win::util::reg::keys_exist;
-    use crate::win::vm::WINDOWS_DIRECTORY;
+    use crate::win::vm::*;
     use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
@@ -83,9 +89,7 @@ pub mod vbox {
 }
 
 pub mod vmware {
-    use crate::win::util::proc::{get_running_processes, proc_contains};
-    use crate::win::util::reg::keys_exist;
-    use crate::win::vm::WINDOWS_DIRECTORY;
+    use crate::win::vm::*;
     use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
@@ -128,8 +132,7 @@ pub mod vmware {
 }
 
 pub mod qemu {
-    use crate::win::util::proc::{get_running_processes, proc_contains};
-    use crate::win::vm::PROGRAM_FILES_DIRECTORY;
+    use crate::win::vm::*;
     use std::path::Path;
 
     pub fn get_processes() -> Vec<&'static str> {
@@ -137,10 +140,7 @@ pub mod qemu {
     }
 
     pub fn check_processes() -> bool {
-        proc_contains(
-            &get_running_processes(),
-            &crate::win::vm::vmware::get_processes(),
-        )
+        proc_contains(&get_running_processes(), &get_processes())
     }
 
     pub fn check_files() -> bool {
@@ -153,18 +153,14 @@ pub mod qemu {
 }
 
 pub mod vpc {
-    use crate::win::util::proc::{get_running_processes, proc_contains};
-    use crate::win::util::reg::keys_exist;
+    use crate::win::vm::*;
 
     pub fn get_processes() -> Vec<&'static str> {
         vec!["VMUSrvc.exe", "VMSrvc.exe"]
     }
 
     pub fn check_processes() -> bool {
-        proc_contains(
-            &get_running_processes(),
-            &crate::win::vm::vmware::get_processes(),
-        )
+        proc_contains(&get_running_processes(), &get_processes())
     }
 
     pub fn check_registry() -> bool {
@@ -172,4 +168,94 @@ pub mod vpc {
             "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters",
         ])
     }
+}
+
+fn get_running_processes() -> Vec<String> {
+    let mut processes: Vec<String> = Vec::new();
+    let mut wts_pi: *mut WTS_PROCESS_INFOW = std::ptr::null_mut();
+    let mut p_count: u32 = 0;
+
+    unsafe {
+        WTSEnumerateProcessesW(
+            WTS_CURRENT_SERVER_HANDLE,
+            0,
+            1,
+            &mut wts_pi,
+            &mut p_count as *mut u32,
+        )
+        .expect("TODO: panic message");
+
+        (0..p_count).for_each(|i| {
+            let process_info = &*wts_pi.offset(i as isize);
+            let process_name = process_info.pProcessName.to_string().unwrap();
+            processes.push(process_name);
+        });
+    };
+
+    processes
+}
+
+fn proc_contains(p1: &Vec<String>, p2: &Vec<&str>) -> bool {
+    p1.iter().any(|proc1| p2.iter().any(|proc2| proc1 == proc2))
+}
+
+fn keys_exist(keys: &Vec<&str>) -> bool {
+    keys.iter().any(|key| key_exists(key))
+}
+
+fn key_exists(key: &str) -> bool {
+    let mut hkey = unsafe { std::mem::zeroed() };
+
+    let err = unsafe {
+        RegOpenKeyW(
+            HKEY_LOCAL_MACHINE,
+            PCWSTR(encode_wide(key).as_ptr()),
+            &mut hkey,
+        )
+    };
+
+    match err {
+        Ok(_) => true,
+        Err(err) => {
+            if err == Error::from(ERROR_SUCCESS) {
+                return true;
+            }
+            false
+        }
+    }
+}
+
+fn get_windows_directory() -> String {
+    let output_size: u32;
+    let mut windows_directory: Vec<u16> = std::iter::repeat('\0' as u16).take(1024).collect();
+
+    unsafe {
+        output_size = GetWindowsDirectoryW(Some(windows_directory.as_mut_slice()));
+    }
+
+    windows_directory.truncate(output_size as usize);
+
+    String::from_utf16_lossy(&*windows_directory)
+}
+
+fn get_program_files_directory() -> String {
+    use windows::Win32::UI::Shell::SHGetFolderPathW;
+    let mut path: [u16; 260] = [0; 260];
+
+    unsafe {
+        let _ = SHGetFolderPathW(None, CSIDL_PROGRAM_FILES as i32, None, 0, &mut path);
+    }
+
+    OsString::from_wide(&path)
+        .to_string_lossy()
+        .as_ref()
+        .trim_end_matches('\0')
+        .to_string()
+}
+
+fn encode_wide(s: &str) -> Vec<u16> {
+    std::ffi::OsString::from(s)
+        .encode_wide()
+        .chain(Some(0))
+        .collect()
 }
