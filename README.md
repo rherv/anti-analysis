@@ -14,33 +14,33 @@ fn main() {
   }
 
   // Checks for VM specific processes
-  if check_all_processes() {
+  if vm::check_all_processes() {
     println!("[+] detected VM process");
   }
 
   // Checks for VM specific registry keys
-  if check_all_reg_keys() {
+  if vm::check_all_reg_keys() {
     println!("[+] detected VM regkey");
   }
 
   /* - Sandbox Detection - */
   // Checks CPU core count, parameter is the minumum core count before beling detected
-  if check_cpu_with_threshold(2) {
+  if sandbox::check_cpu_with_threshold(2) {
     println!("[+] detected sandbox CPU");
   }
 
   // Checks RAM size, parameter is the minumum GB count before beling detected
-  if check_ram_with_threshold(4) {
+  if sandbox::check_ram_with_threshold(4) {
     println!("[+] detected sandbox RAM");
   }
 
   // Checks recent files count, parameter is the minumum file count before beling detected
-  if check_recent_files_with_threshold(20) {
+  if sandbox::check_recent_files_with_threshold(20) {
     println!("[+] detected sandbox recent files");
   }
 
   // Checks system uptime, parameter is the minumum uptime in minutes before beling detected
-  if check_uptime_with_threshold(5) {
+  if sandbox::check_uptime_with_threshold(5) {
     println!("[+] detected sandbox uptime");
   }
 }
