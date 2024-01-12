@@ -20,5 +20,10 @@ features = [
     "Win32_UI",
     "Win32_UI_Shell",
     "Win32_Storage",
-    "Win32_Storage_FileSystem"
+    "Win32_Storage_FileSystem",
+    "Win32_NetworkManagement",
+    "Win32_Networking_WinSock",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_System_Memory"
 ]

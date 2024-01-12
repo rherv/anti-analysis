@@ -2,6 +2,7 @@ use anti_analysis::win;
 
 #[cfg(test)]
 mod win_test {
+    use crate::win_test::get_message;
     use super::win::sandbox::*;
     use super::win::vm::*;
 
@@ -11,6 +12,7 @@ mod win_test {
         println!("{:<13}{}", "File:", get_message(check_all_files()));
         println!("{:<13}{}", "Process:", get_message(check_all_processes()));
         println!("{:<13}{}", "RegKey:", get_message(check_all_reg_keys()));
+        println!("{:<13}{}", "Mac Address:", get_message(check_all_mac_addresses()));
     }
 
     #[test]
@@ -21,12 +23,12 @@ mod win_test {
         println!("{:<13}{}", "Recent File:", get_message(check_recent_files_with_threshold(5)));
         println!("{:<13}{}", "Uptime:", get_message(check_uptime_with_threshold(5)));
     }
+}
 
-    fn get_message(val: bool) -> &'static str {
-        if val {
-            "Detected"
-        } else {
-            "Not Detected"
-        }
+fn get_message(val: bool) -> &'static str {
+    if val {
+        "Detected"
+    } else {
+        "Not Detected"
     }
 }

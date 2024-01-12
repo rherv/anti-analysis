@@ -2,7 +2,10 @@ use lazy_static::lazy_static;
 use std::ffi::OsString;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use windows::core::{Error, PCWSTR};
+use windows::core::imp::{GetProcessHeap, HeapAlloc};
 use windows::Win32::Foundation::ERROR_SUCCESS;
+use windows::Win32::Networking::WinSock::AF_UNSPEC;
+use windows::Win32::NetworkManagement::IpHelper::{GET_ADAPTERS_ADDRESSES_FLAGS, IP_ADAPTER_ADDRESSES_LH};
 use windows::Win32::System::Registry::{RegOpenKeyW, HKEY_LOCAL_MACHINE};
 use windows::Win32::System::RemoteDesktop::{
     WTSEnumerateProcessesW, WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW,
@@ -35,6 +38,10 @@ pub fn check_all_reg_keys() -> bool {
 
 pub fn check_all_files() -> bool {
     vbox::check_files() || vmware::check_files() || qemu::check_files()
+}
+
+pub fn check_all_mac_addresses() -> bool {
+    vbox::check_mac_addresses()
 }
 
 pub mod vbox {
@@ -85,6 +92,14 @@ pub mod vbox {
         ]
         .iter()
         .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
+    }
+
+    pub fn check_mac_addresses() -> bool {
+        valid_mac_addresses(
+            vec![
+                [0x08, 0x00, 0x27], // Virtual Box MAC Address
+            ]
+        )
     }
 }
 
@@ -258,6 +273,55 @@ fn get_program_files_directory() -> String {
         .as_ref()
         .trim_end_matches('\0')
         .to_string()
+}
+
+pub fn valid_mac_addresses(mac_adresses: Vec<[u8; 3]>) -> bool {
+    use windows::Win32::NetworkManagement::IpHelper::GetAdaptersAddresses;
+    use windows::Win32::System::Memory::HEAP_ZERO_MEMORY;
+    let mut adapter_list_size: u32 = 0;
+
+    unsafe {
+        GetAdaptersAddresses(
+            AF_UNSPEC.0 as u32,
+            GET_ADAPTERS_ADDRESSES_FLAGS(0),
+            None,
+            None,
+            &mut adapter_list_size,
+        );
+    }
+
+    let ip_adapter_addresses = unsafe {
+        HeapAlloc(
+            GetProcessHeap(),
+            HEAP_ZERO_MEMORY.0,
+            adapter_list_size as usize,
+        ) as *mut IP_ADAPTER_ADDRESSES_LH
+    };
+
+    unsafe {
+        GetAdaptersAddresses(
+            AF_UNSPEC.0 as u32,
+            GET_ADAPTERS_ADDRESSES_FLAGS(0),
+            None,
+            Some(ip_adapter_addresses),
+            &mut adapter_list_size,
+        );
+    }
+    let mac_address = unsafe {
+        // unsafe dereference
+        match ip_adapter_addresses.as_ref() {
+            None => return false,
+            Some(&mac) => {
+                [
+                    mac.PhysicalAddress[0],
+                    mac.PhysicalAddress[1],
+                    mac.PhysicalAddress[2],
+                ]
+            },
+        }
+    };
+
+    mac_adresses.iter().any(|&mac| mac_address == mac)
 }
 
 fn encode_wide(s: &str) -> Vec<u16> {
