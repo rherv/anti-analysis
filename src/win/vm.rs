@@ -57,7 +57,7 @@ pub mod vbox {
     }
 
     pub fn check_registry() -> bool {
-        keys_exist(&vec![
+        any_keys_exist(&vec![
             "HARDWARE\\ACPI\\DSDT\\VBOX__",
             "HARDWARE\\ACPI\\FADT\\VBOX__",
             "HARDWARE\\ACPI\\RSDT\\VBOX__",
@@ -122,7 +122,7 @@ pub mod vmware {
     }
 
     pub fn check_registry() -> bool {
-        keys_exist(&vec!["SOFTWARE\\VMware, Inc.\\VMware Tools"])
+        any_keys_exist(&vec!["SOFTWARE\\VMware, Inc.\\VMware Tools"])
     }
 
     pub fn check_files() -> bool {
@@ -179,7 +179,7 @@ pub mod vpc {
     }
 
     pub fn check_registry() -> bool {
-        keys_exist(&vec![
+        any_keys_exist(&vec![
             "SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters",
         ])
     }
@@ -221,7 +221,7 @@ fn proc_contains(p1: &Vec<String>, p2: &Vec<&str>) -> bool {
     p1.iter().any(|proc1| p2.iter().any(|proc2| proc1 == proc2))
 }
 
-fn keys_exist(keys: &Vec<&str>) -> bool {
+fn any_keys_exist(keys: &Vec<&str>) -> bool {
     keys.iter().any(|key| key_exists(key))
 }
 
