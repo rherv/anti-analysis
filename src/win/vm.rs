@@ -1,11 +1,17 @@
 use lazy_static::lazy_static;
 use std::ffi::OsString;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
-use windows::core::{Error, PCWSTR};
+use std::path::Path;
 use windows::core::imp::{GetProcessHeap, HeapAlloc};
-use windows::Win32::Foundation::ERROR_SUCCESS;
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::{ERROR_SUCCESS, GENERIC_READ, INVALID_HANDLE_VALUE};
+use windows::Win32::NetworkManagement::IpHelper::{
+    GET_ADAPTERS_ADDRESSES_FLAGS, IP_ADAPTER_ADDRESSES_LH,
+};
 use windows::Win32::Networking::WinSock::AF_UNSPEC;
-use windows::Win32::NetworkManagement::IpHelper::{GET_ADAPTERS_ADDRESSES_FLAGS, IP_ADAPTER_ADDRESSES_LH};
+use windows::Win32::Storage::FileSystem::{
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, OPEN_EXISTING,
+};
 use windows::Win32::System::Registry::{RegOpenKeyW, HKEY_LOCAL_MACHINE};
 use windows::Win32::System::RemoteDesktop::{
     WTSEnumerateProcessesW, WTS_CURRENT_SERVER_HANDLE, WTS_PROCESS_INFOW,
@@ -23,13 +29,10 @@ pub fn check_all() -> bool {
 }
 
 pub fn check_all_processes() -> bool {
-    let mut vm_processes: Vec<&str> = Vec::new();
-    vm_processes.extend(vbox::get_processes());
-    vm_processes.extend(vmware::get_processes());
-    vm_processes.extend(qemu::get_processes());
-    vm_processes.extend(vpc::get_processes());
-
-    proc_contains(&get_running_processes(), &vm_processes)
+    vbox::check_processes()
+        || vmware::check_processes()
+        || qemu::check_processes()
+        || vpc::check_processes()
 }
 
 pub fn check_all_reg_keys() -> bool {
@@ -46,14 +49,9 @@ pub fn check_all_mac_addresses() -> bool {
 
 pub mod vbox {
     use crate::win::vm::*;
-    use std::path::Path;
-
-    pub fn get_processes() -> Vec<&'static str> {
-        vec!["vboxservice.exe", "vboxtray.exe"]
-    }
 
     pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &get_processes())
+        any_processes_exist(&vec!["vboxservice.exe", "vboxtray.exe"])
     }
 
     pub fn check_registry() -> bool {
@@ -71,7 +69,7 @@ pub mod vbox {
     }
 
     pub fn check_files() -> bool {
-        vec![
+        any_files_exist(&vec![
             "System32\\drivers\\VBoxMouse.sys",
             "System32\\drivers\\VBoxGuest.sys",
             "System32\\drivers\\VBoxSF.sys",
@@ -89,36 +87,33 @@ pub mod vbox {
             "System32\\vboxservice.exe",
             "System32\\vboxtray.exe",
             "System32\\VBoxControl.exe",
-        ]
-        .iter()
-        .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
+        ])
     }
 
     pub fn check_mac_addresses() -> bool {
-        valid_mac_addresses(
-            vec![
-                [0x08, 0x00, 0x27], // Virtual Box MAC Address
-            ]
-        )
+        any_mac_addresses_exist(vec![
+            [0x08, 0x00, 0x27], // Virtual Box MAC Address
+        ])
     }
+
+    /*
+    pub fn check_devices() -> bool {
+        any_devices_exist(&vec![])
+    }
+    */
 }
 
 pub mod vmware {
     use crate::win::vm::*;
-    use std::path::Path;
 
-    pub fn get_processes() -> Vec<&'static str> {
-        vec![
+    pub fn check_processes() -> bool {
+        any_processes_exist(&vec![
             "vmtoolsd.exe",
             "vmwaretray.exe",
             "vmwareuser.exe",
             "VGAuthService.exe",
             "vmacthlp.exe",
-        ]
-    }
-
-    pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &get_processes())
+        ])
     }
 
     pub fn check_registry() -> bool {
@@ -126,7 +121,7 @@ pub mod vmware {
     }
 
     pub fn check_files() -> bool {
-        vec![
+        any_files_exist(&vec![
             "System32\\drivers\\vmnet.sys",
             "System32\\drivers\\vmmouse.sys",
             "System32\\drivers\\vmusb.sys",
@@ -140,42 +135,27 @@ pub mod vmware {
             "System32\\drivers\\vmkdb.sys",
             "System32\\drivers\\vmnetuserif.sys",
             "System32\\drivers\\vmnetadapter.sys",
-        ]
-        .iter()
-        .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
+        ])
     }
 }
 
 pub mod qemu {
     use crate::win::vm::*;
-    use std::path::Path;
-
-    pub fn get_processes() -> Vec<&'static str> {
-        vec!["qemu-ga.exe", "vdagent.exe", "vdservice.exe"]
-    }
 
     pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &get_processes())
+        any_processes_exist(&vec!["qemu-ga.exe", "vdagent.exe", "vdservice.exe"])
     }
 
     pub fn check_files() -> bool {
-        vec!["qemu-ga", "SPICE Guest Tools"]
-            .iter()
-            .any(|path_name| {
-                Path::new(&format!("{}\\{}", *PROGRAM_FILES_DIRECTORY, path_name)).exists()
-            })
+        any_files_exist(&vec!["qemu-ga", "SPICE Guest Tools"])
     }
 }
 
 pub mod vpc {
     use crate::win::vm::*;
 
-    pub fn get_processes() -> Vec<&'static str> {
-        vec!["VMUSrvc.exe", "VMSrvc.exe"]
-    }
-
     pub fn check_processes() -> bool {
-        proc_contains(&get_running_processes(), &get_processes())
+        any_processes_exist(&vec!["VMUSrvc.exe", "VMSrvc.exe"])
     }
 
     pub fn check_registry() -> bool {
@@ -185,8 +165,16 @@ pub mod vpc {
     }
 }
 
-fn get_running_processes() -> Vec<String> {
-    let mut processes: Vec<String> = Vec::new();
+fn any_processes_exist(processes: &Vec<&str>) -> bool {
+    get_running_processes().iter().any(|existing_process| {
+        processes
+            .iter()
+            .any(|process_input| process_input == existing_process)
+    })
+}
+
+fn get_running_processes() -> Vec<&'static str> {
+    let mut processes: Vec<&str> = Vec::new();
     let mut wts_pi: *mut WTS_PROCESS_INFOW = std::ptr::null_mut();
     let mut p_count: u32 = 0;
 
@@ -208,8 +196,7 @@ fn get_running_processes() -> Vec<String> {
             let process_info = &*wts_pi.offset(i as isize);
             let process_name = OsString::from_wide(process_info.pProcessName.as_wide())
                 .to_string_lossy()
-                .as_ref()
-                .to_string();
+                .as_ref();
             processes.push(process_name);
         });
     };
@@ -217,8 +204,27 @@ fn get_running_processes() -> Vec<String> {
     processes
 }
 
-fn proc_contains(p1: &Vec<String>, p2: &Vec<&str>) -> bool {
-    p1.iter().any(|proc1| p2.iter().any(|proc2| proc1 == proc2))
+fn any_devices_exist(devices: &Vec<&str>) -> bool {
+    devices.iter().any(|device| device_exists(device))
+}
+
+fn device_exists(device: &str) -> bool {
+    let handle = match unsafe {
+        CreateFileW(
+            PCWSTR(encode_wide(device).as_ptr()),
+            GENERIC_READ.0,
+            FILE_SHARE_READ,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None,
+        )
+    } {
+        Ok(handle) => handle,
+        Err(_err) => return false,
+    };
+
+    return handle != INVALID_HANDLE_VALUE;
 }
 
 fn any_keys_exist(keys: &Vec<&str>) -> bool {
@@ -239,12 +245,19 @@ fn key_exists(key: &str) -> bool {
     match err {
         Ok(_) => true,
         Err(err) => {
-            if err == Error::from(ERROR_SUCCESS) {
+            if err.code().0 as u32 == ERROR_SUCCESS.0 {
+                // i think i did this right
                 return true;
             }
             false
         }
     }
+}
+
+fn any_files_exist(files: &Vec<&str>) -> bool {
+    files
+        .iter()
+        .any(|path_name| Path::new(&format!("{}\\{}", *WINDOWS_DIRECTORY, path_name)).exists())
 }
 
 fn get_windows_directory() -> String {
@@ -275,7 +288,7 @@ fn get_program_files_directory() -> String {
         .to_string()
 }
 
-pub fn valid_mac_addresses(mac_adresses: Vec<[u8; 3]>) -> bool {
+pub fn any_mac_addresses_exist(mac_addresses: Vec<[u8; 3]>) -> bool {
     use windows::Win32::NetworkManagement::IpHelper::GetAdaptersAddresses;
     use windows::Win32::System::Memory::HEAP_ZERO_MEMORY;
     let mut adapter_list_size: u32 = 0;
@@ -311,17 +324,15 @@ pub fn valid_mac_addresses(mac_adresses: Vec<[u8; 3]>) -> bool {
         // unsafe dereference
         match ip_adapter_addresses.as_ref() {
             None => return false,
-            Some(&mac) => {
-                [
-                    mac.PhysicalAddress[0],
-                    mac.PhysicalAddress[1],
-                    mac.PhysicalAddress[2],
-                ]
-            },
+            Some(&mac) => [
+                mac.PhysicalAddress[0],
+                mac.PhysicalAddress[1],
+                mac.PhysicalAddress[2],
+            ],
         }
     };
 
-    mac_adresses.iter().any(|&mac| mac_address == mac)
+    mac_addresses.iter().any(|&mac| mac_address == mac)
 }
 
 fn encode_wide(s: &str) -> Vec<u16> {
