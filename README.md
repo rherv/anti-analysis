@@ -1,6 +1,31 @@
 # anti-analysis library
 A rust library that provides dynamic analysis detection using a variety of techniques
 
+## Features
+### Virtual Machine Detection
+- [x] Process
+- [x] Registry Key
+- [ ] Registry Value
+- [x] File
+- [x] MAC Address
+- [ ] Device
+- [ ] Firmware
+### Sandbox Detection
+- [x] CPU
+- [x] RAM
+- [ ] HDD
+- [x] Uptime Windows API
+- [ ] Uptime Kernel
+- [ ] Process Count
+- [x] Recent Files
+- [ ] Mouse
+- [ ] Internet Connection
+- [ ] Loaded Libraries
+
+### Note about the difference between sandbox and vm
+Virtual machine detection targets specific virtual machine artifacts, while sandbox detection focuses on general indicators that a program is operating in a virtualized environment.
+
+
 ## Example
 ```rust
 use anti-analysis::win::*;
