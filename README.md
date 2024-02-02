@@ -1,4 +1,4 @@
-# anti-analysis library
+# anti-analysis
 A rust library that provides dynamic analysis detection using a variety of techniques
 
 ## Features
