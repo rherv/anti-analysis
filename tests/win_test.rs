@@ -2,30 +2,35 @@ use anti_analysis::win;
 
 #[cfg(test)]
 mod win_test {
-    use crate::win_test::get_message;
     use super::win::sandbox::*;
     use super::win::vm::*;
+    use crate::msg;
 
     #[test]
     fn test_vm_check_all() {
         println!("Windows Virtual Machine Detection");
-        println!("{:<13}{}", "File:", get_message(check_all_files()));
-        println!("{:<13}{}", "Process:", get_message(check_all_processes()));
-        println!("{:<13}{}", "RegKey:", get_message(check_all_reg_keys()));
-        println!("{:<13}{}", "Mac Address:", get_message(check_all_mac_addresses()));
+        println!("{:<20}{}", "File:", msg(check_all_files()));
+        println!("{:<20}{}", "Process:", msg(check_all_processes()));
+        println!("{:<20}{}", "RegKey:", msg(check_all_reg_keys()));
+        println!("{:<20}{}", "Mac Address:", msg(check_all_mac_addresses()));
+        println!("{:<20}{}", "Devices:", msg(check_all_devices()));
     }
 
     #[test]
     fn test_sandbox_check() {
         println!("Windows Sandbox Detection");
-        println!("{:<13}{}", "CPU:", get_message(check_cpu_with_threshold(2)));
-        println!("{:<13}{}", "RAM:", get_message(check_ram_with_threshold(4)));
-        println!("{:<13}{}", "Recent File:", get_message(check_recent_files_with_threshold(5)));
-        println!("{:<13}{}", "Uptime:", get_message(check_uptime_with_threshold(5)));
+        println!("{:<20}{}", "CPU:", msg(check_cpu_with_threshold(2)));
+        println!("{:<20}{}", "RAM:", msg(check_ram_with_threshold(4)));
+        println!(
+            "{:<20}{}",
+            "Recent File:",
+            msg(check_recent_files_with_threshold(5))
+        );
+        println!("{:<20}{}", "Uptime:", msg(check_uptime_with_threshold(5)));
     }
 }
 
-fn get_message(val: bool) -> &'static str {
+fn msg(val: bool) -> &'static str {
     if val {
         "Detected"
     } else {

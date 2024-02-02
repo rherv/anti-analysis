@@ -25,7 +25,11 @@ lazy_static! {
 }
 
 pub fn check_all() -> bool {
-    check_all_processes() || check_all_reg_keys() || check_all_files()
+    check_all_processes()
+        || check_all_reg_keys()
+        || check_all_files()
+        || check_all_mac_addresses()
+        || check_all_devices()
 }
 
 pub fn check_all_processes() -> bool {
@@ -45,6 +49,10 @@ pub fn check_all_files() -> bool {
 
 pub fn check_all_mac_addresses() -> bool {
     vbox::check_mac_addresses()
+}
+
+pub fn check_all_devices() -> bool {
+    vbox::check_devices() || vmware::check_devices()
 }
 
 pub mod vbox {
@@ -96,11 +104,15 @@ pub mod vbox {
         ])
     }
 
-    /*
     pub fn check_devices() -> bool {
-        any_devices_exist(&vec![])
+        any_devices_exist(&vec![
+            "\\\\.\\VBoxMiniRdrDN",
+            "\\\\.\\VBoxGuest",
+            "\\\\.\\pipe\\VBoxMiniRdDN",
+            "\\\\.\\VBoxTrayIPC",
+            "\\\\.\\pipe\\VBoxTrayIPC",
+        ])
     }
-    */
 }
 
 pub mod vmware {
@@ -136,6 +148,10 @@ pub mod vmware {
             "System32\\drivers\\vmnetuserif.sys",
             "System32\\drivers\\vmnetadapter.sys",
         ])
+    }
+
+    pub fn check_devices() -> bool {
+        any_devices_exist(&vec!["\\\\.\\HGFS", "\\\\.\\vmci"])
     }
 }
 
@@ -173,8 +189,8 @@ fn any_processes_exist(processes: &Vec<&str>) -> bool {
     })
 }
 
-fn get_running_processes() -> Vec<&'static str> {
-    let mut processes: Vec<&str> = Vec::new();
+fn get_running_processes() -> Vec<String> {
+    let mut processes: Vec<String> = Vec::new();
     let mut wts_pi: *mut WTS_PROCESS_INFOW = std::ptr::null_mut();
     let mut p_count: u32 = 0;
 
@@ -196,7 +212,8 @@ fn get_running_processes() -> Vec<&'static str> {
             let process_info = &*wts_pi.offset(i as isize);
             let process_name = OsString::from_wide(process_info.pProcessName.as_wide())
                 .to_string_lossy()
-                .as_ref();
+                .as_ref()
+                .to_string();
             processes.push(process_name);
         });
     };
