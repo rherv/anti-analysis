@@ -57,22 +57,22 @@ fn main() {
   }
 
   /* - Sandbox Detection - */
-  // Checks CPU core count, parameter is the minumum core count before beling detected.
+  // Checks CPU core count, parameter is the minumum core count before being detected.
   if sandbox::check_cpu_with_threshold(2) {
     println!("[+] detected sandbox CPU");
   }
 
-  // Checks RAM size, parameter is the minumum GB count before beling detected.
+  // Checks RAM size, parameter is the minumum GB count before being detected.
   if sandbox::check_ram_with_threshold(4) {
     println!("[+] detected sandbox RAM");
   }
 
-  // Checks recent files count, parameter is the minumum file count before beling detected.
+  // Checks recent files count, parameter is the minumum file count before being detected.
   if sandbox::check_recent_files_with_threshold(20) {
     println!("[+] detected sandbox recent files");
   }
 
-  // Checks system uptime, parameter is the minumum uptime in minutes before beling detected.
+  // Checks system uptime, parameter is the minumum uptime in minutes before being detected.
   if sandbox::check_uptime_with_threshold(5) {
     println!("[+] detected sandbox uptime");
   }
